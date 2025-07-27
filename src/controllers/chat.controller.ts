@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { geminiModel } from "../config/gemini";
 import { saveChatHistory } from "../models/chat.model";
 import { db } from "../config/firebase";
+import { Timestamp } from "firebase-admin/firestore";
 
 const USER_ID = "demo-user-001";
 
@@ -94,3 +95,61 @@ export const getChatHistory = async (req: Request, res: Response) => {
     res.status(500).json({ status: "error", message: "Failed to get chat history" });
   }
 };
+
+export const updateChatHistory = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { prompt, response } = req.body;
+
+  if (!prompt && !response) {
+    return res.status(400).json({ status: "error", message: "No fields to update" });
+  }
+
+  try {
+    const ref = db.collection("chat_history").doc(id);
+    const doc = await ref.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ status: "error", message: "Chat history not found" });
+    }
+
+    const updateData: any = {
+      timestamp: Timestamp.now(),
+    };
+
+    if (prompt) {
+      updateData.prompt = prompt;
+
+      const result = await geminiModel.invoke(prompt);
+
+      let newReplyText = "";
+
+      if (typeof result.content === "string") {
+        newReplyText = result.content;
+      } else if (Array.isArray(result.content)) {
+        newReplyText = result.content.map((c: any) => c?.text ?? "").join(" ");
+      } else if (typeof result.content === "object" && result.content !== null && "text" in result.content) {
+        newReplyText = (result.content as { text?: string }).text ?? "";
+      }
+
+      newReplyText = newReplyText.replace(/\*\*|\n|\\n/g, "").replace(/\s+/g, " ").trim();
+
+      updateData.response = newReplyText;
+    }
+
+    if (!prompt && response) {
+      updateData.response = response;
+    }
+
+    await ref.update(updateData);
+
+    res.json({
+      status: "success",
+      message: "Chat history updated successfully",
+      data: updateData,
+    });
+  } catch (error) {
+    console.error("Error updating chat history:", error);
+    res.status(500).json({ status: "error", message: "Failed to update chat history" });
+  }
+};
+
