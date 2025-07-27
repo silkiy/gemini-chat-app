@@ -153,3 +153,22 @@ export const updateChatHistory = async (req: Request, res: Response) => {
   }
 };
 
+export const deleteChatHistory = async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const ref = db.collection("chat_history").doc(id);
+    const doc = await ref.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ status: "error", message: "Chat history not found" });
+    }
+
+    await ref.delete();
+
+    res.json({ status: "success", message: "Chat history deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting chat history:", error);
+    res.status(500).json({ status: "error", message: "Failed to delete chat history" });
+  }
+};
