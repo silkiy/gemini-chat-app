@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { geminiModel } from "../config/gemini";
 import { saveChatHistory } from "../models/chat.model";
+import { db } from "../config/firebase";
 
 const USER_ID = "demo-user-001";
 
@@ -66,5 +67,30 @@ export const handleChat = async (req: Request, res: Response) => {
       status: "error",
       message: "Something went wrong while generating response.",
     });
+  }
+};
+
+export const getChatHistory = async (req: Request, res: Response) => {
+  const { user_id } = req.params;
+
+  try {
+    const snapshot = await db
+      .collection("chat_history")
+      .where("userId", "==", user_id)
+      .orderBy("timestamp", "desc")
+      .get();
+
+    const history = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.json({
+      status: "success",
+      data: history,
+    });
+  } catch (error) {
+    console.error("Error fetching chat history:", error);
+    res.status(500).json({ status: "error", message: "Failed to get chat history" });
   }
 };
