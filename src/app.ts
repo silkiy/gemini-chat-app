@@ -5,8 +5,6 @@ import router from "./routers/chat.routes";
 import { createServer } from "http";
 import { parse } from "url";
 
-
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
