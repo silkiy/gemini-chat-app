@@ -6,7 +6,7 @@ import { createServer } from "http";
 import { parse } from "url";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT: number = parseInt(process.env.PORT || "3000", 10);
 
 app.use(express.json());
 app.use("/api", router);
@@ -24,13 +24,18 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-export default async function handler(req: any, res: any) {
+if (process.env.DOCKER) {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 Docker server running on http://0.0.0.0:${PORT}`);
+  });
+} else if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+export default function handler(req: any, res: any) {
   const parsedUrl = parse(req.url!, true);
   req.query = parsedUrl.query;
-
-  const server = createServer((req, res) => {
-    app(req as any, res as any);
-  });
-
-  server.emit("request", req, res);
+  app(req as any, res as any);
 }
